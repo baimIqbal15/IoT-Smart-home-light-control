@@ -1,0 +1,137 @@
+#include <ESP8266WiFi.h>
+#include <WiFiManager.h>
+#include <FirebaseESP8266.h>
+
+// ================= KREDENSIAL FIREBASE =================
+#define FIREBASE_HOST "iot-lampu-otomatis-86d24-default-rtdb.asia-southeast1.firebasedatabase.app"
+#define FIREBASE_AUTH "h4TYxJX3DZ8CcKGfuJWY7LoHuOjLY8J2UqDmR0d3"
+
+FirebaseData fbDataKirim;
+FirebaseData fbDataBaca;
+FirebaseAuth auth;
+FirebaseConfig config;
+
+// ================= DEKLARASI PIN =================
+const int pinLDR = A0;       
+const int pinPIR = D7;       
+
+// Pin Modul Relay 4-Channel
+const int relayTeras      = D1;  
+const int relayKamarMandi = D2;  
+const int relayRuangTamu  = D5;  
+const int relayKamarTidur = D6;  
+
+// ================= VARIABEL SISTEM =================
+int nilaiLDR = 0;
+const int batasGelap = 500; 
+bool statusLampuTeras = false;
+
+bool statusGerakan = false;
+bool statusLampuKamarMandi = false;
+unsigned long waktuTerakhirGerak = 0;  
+const unsigned long jedaLampuMati = 10000; // 10 detik
+
+unsigned long timerBacaWeb = 0; 
+
+void setup() {
+  Serial.begin(115200);
+  
+  pinMode(pinPIR, INPUT);
+  
+  pinMode(relayTeras, OUTPUT);
+  pinMode(relayKamarMandi, OUTPUT);
+  pinMode(relayRuangTamu, OUTPUT);
+  pinMode(relayKamarTidur, OUTPUT);
+  
+  // PENYESUAIAN ACTIVE LOW: Kirim HIGH agar Relay MATI saat awal menyala
+  digitalWrite(relayTeras, LOW);
+  digitalWrite(relayKamarMandi, LOW);
+  digitalWrite(relayRuangTamu, LOW);
+  digitalWrite(relayKamarTidur, LOW);
+
+  Serial.println("\nMemulai Koneksi WiFi...");
+  WiFiManager wifiManager;
+  wifiManager.autoConnect("SmartHome-Setup");
+  Serial.println("WiFi Terhubung!");
+
+  config.database_url = FIREBASE_HOST;
+  config.signer.tokens.legacy_token = FIREBASE_AUTH;
+  
+  fbDataKirim.setBSSLBufferSize(1024, 1024); 
+  fbDataBaca.setBSSLBufferSize(1024, 1024); 
+  
+  Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
+  Serial.println("Firebase Berhasil Diinisialisasi!");
+}
+
+void loop() {
+  // ==========================================
+  // ZONA 1: TERAS (SENSOR LDR)
+  // ==========================================
+  nilaiLDR = analogRead(pinLDR);
+  bool kondisiTerasGelap = (nilaiLDR > batasGelap);
+
+  if (kondisiTerasGelap != statusLampuTeras) {
+    statusLampuTeras = kondisiTerasGelap;
+    
+    // ACTIVE LOW: Menyala = LOW, Mati = HIGH
+    digitalWrite(relayTeras, statusLampuTeras ? LOW : HIGH);
+    
+    Firebase.setBool(fbDataKirim, "/Teras/LampuMenyala", statusLampuTeras);
+  }
+  Firebase.setInt(fbDataKirim, "/Teras/NilaiSensorLDR", nilaiLDR);
+
+  // // Tambahkan ini di bagian loop() hanya untuk tes fisik
+  //   digitalWrite(relayRuangTamu, LOW);  // Nyalakan (Active LOW)
+  //   delay(2000);
+  //   digitalWrite(relayRuangTamu, HIGH); // Matikan
+  //   delay(2000);
+
+  // ==========================================
+  // ZONA 2: KAMAR MANDI (SENSOR PIR & TIMER)
+  // ==========================================
+  bool gerakanSekarang = digitalRead(pinPIR); 
+
+  if (gerakanSekarang != statusGerakan) {
+    statusGerakan = gerakanSekarang;
+    Firebase.setBool(fbDataKirim, "/KamarMandi/AdaGerakan", statusGerakan);
+  }
+
+  if (gerakanSekarang == HIGH) {
+    waktuTerakhirGerak = millis();
+  }
+
+  bool kondisiKamarMandiNyala = (millis() - waktuTerakhirGerak <= jedaLampuMati);
+
+  if (kondisiKamarMandiNyala != statusLampuKamarMandi) {
+    statusLampuKamarMandi = kondisiKamarMandiNyala;
+    
+    // ACTIVE LOW: Menyala = LOW, Mati = HIGH
+    digitalWrite(relayKamarMandi, statusLampuKamarMandi ? LOW : HIGH);
+    
+    Firebase.setBool(fbDataKirim, "/KamarMandi/LampuMenyala", statusLampuKamarMandi);
+  }
+
+ // ==========================================
+  // ZONA 3 & 4: MANUAL DARI WEB (Setiap 1 Detik)
+  // ==========================================
+  if (millis() - timerBacaWeb > 1000) {
+    timerBacaWeb = millis();
+
+    // Baca Perintah Kamar 1 (Tersambung ke Relay 3 / IN3)
+    if (Firebase.getBool(fbDataBaca, "/Manual/Kamar1/LampuMenyala")) {
+      bool perintahKamar1 = fbDataBaca.boolData();
+      // ACTIVE LOW: Perintah Nyala (true) kirim LOW, Perintah Mati (false) kirim HIGH
+      digitalWrite(relayRuangTamu, perintahKamar1 ? LOW : HIGH);
+    }
+
+    // Baca Perintah Kamar 2 (Tersambung ke Relay 4 / IN4)
+    if (Firebase.getBool(fbDataBaca, "/Manual/Kamar2/LampuMenyala")) {
+      bool perintahKamar2 = fbDataBaca.boolData();
+      // ACTIVE LOW: Perintah Nyala (true) kirim LOW, Perintah Mati (false) kirim HIGH
+      digitalWrite(relayKamarTidur, perintahKamar2 ? LOW : HIGH);
+    }
+  }
+  delay(100);
+}

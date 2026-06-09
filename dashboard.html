@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Home Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* Tema Minimalis: Dominan Putih dan Ocean Blue */
+        :root {
+            --ocean-blue: #006994;
+            --light-blue: #e6f4f1;
+            --white: #ffffff;
+            --gray: #cccccc;
+            --yellow: #f1c40f;
+            --text-dark: #333333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-blue);
+            color: var(--text-dark);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: var(--ocean-blue);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .widget {
+            background-color: var(--white);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .widget h3 {
+            color: var(--ocean-blue);
+            margin-top: 0;
+            border-bottom: 2px solid var(--light-blue);
+            padding-bottom: 10px;
+        }
+
+        /* Widget 1: Status Lampu Utama */
+        .status-icon {
+            font-size: 4rem;
+            margin: 20px 0;
+            transition: color 0.3s ease;
+        }
+        .status-on { color: var(--yellow); }
+        .status-off { color: var(--gray); }
+        .status-text { font-size: 1.5rem; font-weight: bold; }
+
+        /* Widget 2: LDR Indicator */
+        .ldr-value {
+            font-size: 3rem;
+            color: var(--ocean-blue);
+            font-weight: bold;
+            margin: 20px 0;
+        }
+
+        /* Widget 3: Grafik / Penggunaan */
+        .usage-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 15px 0;
+            font-size: 1.1rem;
+        }
+
+        /* Manual Override Toggles */
+        .toggle-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: var(--light-blue);
+            border-radius: 8px;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--gray);
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--ocean-blue); }
+        input:checked + .slider:before { transform: translateX(26px); }
+    </style>
+</head>
+<body>
+
+    <h1>Smart Home IoT Dashboard</h1>
+
+    <div class="dashboard-container">
+        
+        <div class="widget" id="widget-status">
+            <h3>Status Lampu Utama</h3>
+            <i class="fas fa-lightbulb status-icon status-off" id="main-bulb-icon"></i>
+            <div class="status-text" id="main-status-text">MATI</div>
+        </div>
+
+        <div class="widget" id="widget-ldr">
+            <h3>Sensor Cahaya (LDR)</h3>
+            <div class="ldr-value"><span id="ldr-display">0</span></div>
+            <p>Ambang batas gelap: < 500</p>
+        </div>
+
+        <div class="widget" id="widget-usage">
+            <h3>Estimasi Penggunaan (Lampu DC 12V)</h3>
+            <div class="usage-stat">
+                <span>Durasi Menyala Hari Ini:</span>
+                <strong id="usage-hours">0 Jam</strong>
+            </div>
+            <div class="usage-stat">
+                <span>Estimasi Daya Listrik:</span>
+                <strong id="usage-power">0 Wh</strong>
+            </div>
+        </div>
+
+        <div class="widget">
+            <h3>Kendali Manual Override</h3>
+            
+            <div class="toggle-group">
+                <span>Lampu Teras</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-teras">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-group">
+                <span>Lampu Ruang Tamu</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-ruang-tamu">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-group">
+                <span>Lampu Kamar Tidur</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-kamar-tidur">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-group">
+                <span>Lampu Kamar Mandi</span>
+                <label class="switch">
+                    <input type="checkbox" id="toggle-kamar-mandi">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+        </div>
+    </div>
+
+    <script type="module" src="js/dashboard.js"></script>
+</body>
+</html>
